@@ -46,16 +46,16 @@ In the case of `filters`, it is removed as there is no API support to use
 
 ### Necessary URLs
 
- | Type | URL |
- | --- | --- |
- | API endpoints | `https://todoist.com/API/v7/*` |
- | Avatar Images | `https://dcff1xvirvpfp.cloudfront.net/*_small.jpg`, `https://dcff1xvirvpfp.cloudfront.net/*_medium.jpg`, `https://dcff1xvirvpfp.cloudfront.net/*_big.jpg` `https://dcff1xvirvpfp.cloudfront.net/*_s640.jpg` |
- | Oauth API | `https://todoist.com/oauth/*` |
- | Token API | `https://todoist.com/api/access_tokens/*` |
- | Templates | `https://todoist.com/importFromTemplate?t_url=*` |
- | Imports/Exports | `https://*.cloudfront.net/*.csv` |
- | Karma Chart | `https://todoist.com/chart?` |
- | Backups | `https://s3.amazonaws.com/user_backups.todoist.com/*` |
+Type | URL
+--- | ---
+API endpoints | `https://todoist.com/API/v7/*`
+Avatar Images | `https://dcff1xvirvpfp.cloudfront.net/*_small.jpg`, `https://dcff1xvirvpfp.cloudfront.net/*_medium.jpg`, `https://dcff1xvirvpfp.cloudfront.net/*_big.jpg` `https://dcff1xvirvpfp.cloudfront.net/*_s640.jpg`
+Oauth API | `https://todoist.com/oauth/*`
+Token API | `https://todoist.com/api/access_tokens/*`
+Templates | `https://todoist.com/importFromTemplate?t_url=*`
+Imports/Exports | `https://*.cloudfront.net/*.csv`
+Karma Chart | `https://todoist.com/chart?`
+Backups | `https://s3.amazonaws.com/user_backups.todoist.com/*`
 
 ### Legal
 
