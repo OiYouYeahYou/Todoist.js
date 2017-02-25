@@ -15,158 +15,85 @@ var that = this,		// Enables sub functions to access `this`
 	},
 	imgUrlBase = "https://dcff1xvirvpfp.cloudfront.net/";
 						// Base image url
+////////		////////		Main Object		////////		////////
+this.items				= {};
+this.projects			= {};
+this.labels				= {};
+this.liveNotifications	= {};
+this.collaborators		= {};
+this.notes				= {};
+////////		////////		Private funcs	////////		////////
 function logger( message, r ) {
-	if ( that.logger.tell )		console.log( message );
-	if ( that.logger.track )	that.logger.messages.push( String(message) );
-
-	if ( arguments.length > 1 ) return r;
-	else						return message;
+	if ( that.logger.tell  ) console.log( message );
+	if ( that.logger.track ) that.logger.messages.push( message.toString() );
+	// if no return value, use message
+	if (
+		typeof r		=== "undefined" &&
+		typeof message	!== "undefined"
+	)						return message;
+	// if return value exists, return that
+	else if ( typeof r	!== "undefined" )
+							return r;
+	// els return false
+	else					return false;
 }
 this.logger = {
 	tell		:	false,
 	track		:	false,
 	messages	:	[],
 };
-function ajax( paramObj, url, onloadFunc ) {
-	// Validation
-	if (
-			typeof paramObj		!== "object" ||
-			typeof url			!== "string" ||
-			typeof onloadFunc	!== "function"
-		) return false;
-
-	var urlString = "https://todoist.com/API/v7/" + url,
-								// URL constructor
-		paramString	= "",		// String to be passed to Todoist API
-		keys		= Object.keys(paramObj),
-								// Sorthand
-		key;					// Shorthand
-
-	// Param string construction
-	for (var i = 0; i < keys.length; i++) {
-		key = keys[i];
-		if	( paramString.length > 1 ) paramString += "&";
-		if	( paramObj[ key ].toString )
-			paramString += key +"="+String(paramObj[ key ]).replace(/'/g,"\"");
-		else return logger("Unexpected data type", false);
-	}
-
-	// Calling the HTTP request
-	var xhr = new XMLHttpRequest();
-		xhr.onload = function() {onloadFunc( JSON.parse(xhr.response) );};
-		xhr.open( "POST", urlString );
-		xhr.setRequestHeader(
-			"Content-type", "application/x-www-form-urlencoded" );
-		xhr.send( paramString );
-}
-this.sync = function () {
-	// Validate presence of token
-	if		( !that.token ) return logger ("No Token", false);
-
-	// Prevent too many connections
-	if ( that.limit === countOfConn )
-		return logger("connection limit reached",false);
-		else countOfConn++;
-
-	// Detect if no connection present
-	if	(!navigator.onLine) {
-		// TODO: Offline handling
-		if (that.offline) that.offline();
-		return logger( "Offline" , false);
-	}
-
-	// Start xhr
-	ajax(
-		{
-			"token"			: this.token,
-			"sync_token"	: "*", // syncTokens.main, NOTE: Partial sync diabled until merging functionality is present
-			"resource_types": "['all']",
-		},
-		"sync",
-		loadEvent
-	);
-
-	function loadEvent( response ) {
-		// Camelise response
-		response = cameliseKeys( response );
-
-		// Error handling
-		// TODO: implement error handling
-		if (response.error) return logger(response, false);
-
-		// Tempory code for testing purposes, will eventually be invalidated by better code
-		data = nativisor( response, true );
-		if ( data ) that.dataArray = data;
-		else 		return logger( data, false );
-
-		// Optional function
-		if (that.sync.oncomplete) that.sync.oncomplete( that.dataArray );
-
-		// End of connection, decrement connection count
-		countOfConn--;
-	}
-};
-this.sync.oncomplete			= null;
-that.dataArray					= null;
-this.token						= null;
 function nativisor( response, camelised ) {
 	// Camelise response
 	if ( !camelised ) response = cameliseKeys( response );
 
 	var i, e,				// Looping variables
-		key,				// Working element
-		project,			// Individual working element
-		collaborator,		// Individual working element
-		label,				// Individual working element
-		notification,		// Individual working element
-		item,				// Individual working element
-		note,				// Individual working element
-		projectColours = [	// Array of colours used by projects
-			"#95ef63","#ff8581","#ffc471","#f9ec75","#a8c8e4","#d2b8a3",
-			"#e2a8e4","#cccccc","#fb886e","#ffcc00","#74e8d3","#3bd5fb",
-			"#dc4fad","#ac193d","#d24726","#82ba00","#03b3b2","#008299",
-			"#5db2ff","#0072c6","#000000","#777777",
-		],
-		labelColours = [	// Array of colours used by labels
-			"#019412","#a39d01","#e73d02","#e702a4","#9902e7","#1d02e7",
-			"#0082c5","#555555","#008299","#03b3b2","#ac193d","#82ba00",
-			"#111111",
-		],
-		lit = {				// Objects replace their Array counterpart
-			items 				: {},
-			projects			: {},
-			labels 				: {},
-			liveNotifications	: {},
-			collaborators		: {},
-			notes				: {},
-		};
+	key,				// Working element
+	iter = that.sync.iterator,
+	//Shorthand
+	project,			// Individual working element
+	collaborator,		// Individual working element
+	label,				// Individual working element
+	notification,		// Individual working element
+	item,				// Individual working element
+	note,				// Individual working element
+	projectColours = [	// Array of colours used by projects
+		"#95ef63","#ff8581","#ffc471","#f9ec75","#a8c8e4","#d2b8a3",
+		"#e2a8e4","#cccccc","#fb886e","#ffcc00","#74e8d3","#3bd5fb",
+		"#dc4fad","#ac193d","#d24726","#82ba00","#03b3b2","#008299",
+		"#5db2ff","#0072c6","#000000","#777777",
+	],
+	labelColours = [	// Array of colours used by labels
+		"#019412","#a39d01","#e73d02","#e702a4","#9902e7","#1d02e7",
+		"#0082c5","#555555","#008299","#03b3b2","#ac193d","#82ba00",
+		"#111111",
+	];
 
 	// Validation
 	if 	( // TODO: eventually this should be handled by the maps
-			Array.isArray(	response.collaboratorStates				)&&
-			Array.isArray(	response.collaborators					)&&
-			typeof			response.dayOrders 			=== "object" &&
-			typeof			response.dayOrdersTimestamp	=== "string" &&
-			Array.isArray(	response.filters						)&&
-			typeof			response.fullSync 			=== "boolean"&&
-			Array.isArray(	response.items							)&&
-			Array.isArray(	response.labels							)&&
-			Array.isArray(	response.liveNotifications				)&&
-			typeof			response.liveNotificationsLastReadId ===
-															"number" &&
-			// Array.isArray(	response.locations						)&&
-			// NOTE: is ommited when not needed
-			Array.isArray(	response.notes							)&&
-			Array.isArray(	response.projectNotes					)&&
-			Array.isArray(	response.projects						)&&
-			Array.isArray(	response.reminders						)&&
-			typeof			response.syncToken 			=== "string" &&
-			typeof			response.tempIdMapping		=== "object" &&
-			// typeof			response.user				=== "object" &&
-			// NOTE: is ommited when not needed
-			true // HACK: enables quick editing of elems above
-		)
-		{ logger ( "Valid response" ); }
+		Array.isArray(	response.collaboratorStates				)&&
+		Array.isArray(	response.collaborators					)&&
+		typeof			response.dayOrders 			=== "object" &&
+		typeof			response.dayOrdersTimestamp	=== "string" &&
+		Array.isArray(	response.filters						)&&
+		typeof			response.fullSync 			=== "boolean"&&
+		Array.isArray(	response.items							)&&
+		Array.isArray(	response.labels							)&&
+		Array.isArray(	response.liveNotifications				)&&
+		typeof			response.liveNotificationsLastReadId ===
+		"number" &&
+		// Array.isArray(	response.locations						)&&
+		// NOTE: is ommited when not needed
+		Array.isArray(	response.notes							)&&
+		Array.isArray(	response.projectNotes					)&&
+		Array.isArray(	response.projects						)&&
+		Array.isArray(	response.reminders						)&&
+		typeof			response.syncToken 			=== "string" &&
+		typeof			response.tempIdMapping		=== "object" &&
+		// typeof			response.user				=== "object" &&
+		// NOTE: is ommited when not needed
+		true // HACK: enables quick editing of elems above
+	)
+	{ logger ( "Valid response" ); }
 	else{ return logger("Invalid response", false); }// bad response
 
 	/*						Projects							  */
@@ -181,14 +108,15 @@ function nativisor( response, camelised ) {
 		// Nativisation
 		project.colourKey = project.color;
 		project.colourHex = projectColours[project.color];
-		delete project.id;
 		delete project.color;
 		delete project.inboxProject;
 
-		// Build replacement object
-		lit.projects[key] = project;
-	} project = key = null; // Housekeeping
+		// Iteration API hook
+		if (iter.projects) iter.projects(project);
 
+		// Build replacement object
+		that.projects[key] = project;
+	} project = key = null; // Housekeeping
 	/*						Collaborators						  */
 	for( i = 0; i < response.collaborators.length; i++ ) {
 		// Set working vars
@@ -201,25 +129,26 @@ function nativisor( response, camelised ) {
 		// Nativisation
 		if (collaborator.imageId) {
 			collaborator.avatar			= {};
-			collaborator.avatar.big		= imgUrlBase + collaborator.imageId +
-																"_big.jpg";
-			collaborator.avatar.medium	= imgUrlBase + collaborator.imageId +
-																"_medium.jpg";
-			collaborator.avatar.s640	= imgUrlBase + collaborator.imageId +
-																"_s640.jpg";
-			collaborator.avatar.small	= imgUrlBase + collaborator.imageId +
-																"_small.jpg";
+			collaborator.avatar.big		= imgUrlBase +
+			collaborator.imageId + "_big.jpg";
+			collaborator.avatar.medium	= imgUrlBase +
+			collaborator.imageId + "_medium.jpg";
+			collaborator.avatar.s640	= imgUrlBase +
+			collaborator.imageId + "_s640.jpg";
+			collaborator.avatar.small	= imgUrlBase +
+			collaborator.imageId + "_small.jpg";
 			collaborator.avatar.raw		= collaborator.imageId;
 		}
 		else
-			collaborator.avatar 		= null;
+		collaborator.avatar 		= null;
 		delete collaborator.imageId;
-		delete collaborator.id;
+
+		// Iteration API hook
+		if (iter.collaborators) iter.collaborators(collaborator);
 
 		// Build replacement object
-		lit.collaborators[ key ] = collaborator;
+		that.collaborators[ key ] = collaborator;
 	} collaborator = key = null; // Housekkieping
-
 	/*						Labels								  */
 	for( i = 0; i < response.labels.length; i++ ) {
 		// Set working vars
@@ -233,13 +162,14 @@ function nativisor( response, camelised ) {
 		label.colourKey = label.color;
 		label.colourHex = labelColours[label.color];
 		label.isDeleted = Boolean(label.isDeleted);
-		delete label.id;
 		delete label.color;
 
-		// Build replacement object
-		lit.labels[ key ] = label;
-	} label = key = null; // Housekkieping
+		// Iteration API hook
+		if (iter.labels) iter.labels(label);
 
+		// Build replacement object
+		that.labels[ key ] = label;
+	} label = key = null; // Housekkieping
 	/*						Notifications						  */
 	for( i = 0; i < response.liveNotifications.length; i++ ) {
 		// Set working vars
@@ -248,22 +178,24 @@ function nativisor( response, camelised ) {
 
 		// Marking read notifications
 		if 		( response.liveNotificationsLastReadId >= key ){
-				notification.read = true;
+			notification.read = true;
 		}else	notification.read = false;
 
 		// Nativisation
 		notification.isDeleted	=  Boolean(notification.isDeleted);
 		notification.created	= new Date(notification.created);
-		delete notification.id;
 		// TODO: implement more nativisation relevant to specific to special cases
 
+		// Iteration API hook
+		if (iter.liveNotifications) iter.liveNotifications(notification);
+
 		// Build replacement object
-		lit.liveNotifications[key] = notification;
+		that.liveNotifications[key] = notification;
 	} notification = key = null; // Housekkieping
 
 	/*						Items								  */
 	for( i = 0; i < response.items.length; i++ ) {
-		// Set working vars
+		// Camelising
 		item	= cameliseKeys(response.items[i]);
 		key		= item.id;
 
@@ -272,25 +204,32 @@ function nativisor( response, camelised ) {
 		dataSupport.projects	[ item.projectId ]	[ key ] = true;
 		dataSupport.priorities	[ item.priority ]	[ key ] = true;
 		for ( e = 0; e < item.labels.length; e++ )
-			{dataSupport.labels	[ item.labels[e] ]	[ item.id ] = true;}
+		{dataSupport.labels	[ item.labels[e] ]	[ item.id ] = true;}
 
 		// Nativisation
-		item.checked	= 		Boolean	( item.checked		);
-		item.dateAdded	= new 	Date	( item.dateAdded	);
+		item.checked		= 		Boolean	( item.checked		);
+		item.dateAdded		= new 	Date	( item.dateAdded	);
+		if (item.dueDateUtc)
 		item.dueDateUtc	= new 	Date	( item.dueDateUtc	);
-		item.isArchived	= 		Boolean	( item.isArchived	);
-		item.isDeleted	= 		Boolean	( item.isDeleted	);
-		item.notes		= {};	// NOTE: Could be handled in notes iteration
-		delete item.id;
+		item.isArchived		= 		Boolean	( item.isArchived	);
+		item.isDeleted		= 		Boolean	( item.isDeleted	);
+		if ( item.content.substr(0,2) === "* " )	{
+			item.checkable = false;
+			// item.content = item.content.replace( "* ", "" );
+			// NOTE: ^^^ May remove because of end-dev choice of parser
+		}
+		else							item.checkable = true;
+		item.notes			= {};	// NOTE: Could be handled in notes iteration
+
+		// Iteration API hook
+		if (iter.items) iter.items(item);
 
 		// Build replacement object
-		lit.items[key] = item;
+		that.items[key] = item;
 	} item = key = null; // Housekkieping
-
 	/*						Notes								  */
 	for( i = 0; i < response.notes.length; i++ ) {
 		// TODO: Decide where to keep notes, in item or in notes object
-		// Set working vars
 		note	= cameliseKeys(response.notes[i]);
 		key		= note.id;
 		item	= note.itemId;
@@ -299,32 +238,28 @@ function nativisor( response, camelised ) {
 		note.posted		= new Date	(note.posted);
 		note.isArchived	= Boolean	(note.isArchived);
 		note.isDeleted	= Boolean	(note.isDeleted);
-		delete note.id;
 
 		// Embed notes into relevant Item
-		// if ( !	lit.items[ item ].notes )
-		// 		lit.items[ item ].notes = {};
+		// if ( !	that.items[ item ].notes )
+		// 		that.items[ item ].notes = {};
 		// NOTE: Handled in notes iteration ATM
-		lit.items[ item ].notes[ key ] = note;
+		that.items[ item ].notes[ key ] = note;
+
+		// Iteration API hook
+		if (iter.notes) iter.notes(note);
 
 		// Build replacement object
-		lit.notes[key] = note;
+		that.notes[key] = note;
 	} note = key = null; // Housekkieping
 
-	// TODO: Iterator for locations
-	// TODO: Iterator for projectNotes
-	// TODO: Iterator for reminders
-	// TODO: Iterator for collaboratorStates
-
 	// Replacing Arrays with new litteral Objects
-	response.projects				= lit.projects;
-	response.collaborators			= lit.collaborators;
-	response.labels					= lit.labels;
-	response.liveNotifications		= lit.liveNotifications;
-	response.items					= lit.items;
-	response.notes					= lit.notes;
-	response.notes					= lit.notes;
-	lit = null;
+	response.items					= that.items;
+	response.projects				= that.projects;
+	response.labels					= that.labels;
+	response.liveNotifications		= that.liveNotifications;
+	response.collaborators			= that.collaborators;
+	response.notes					= that.notes;
+	response.notes					= that.notes;
 
 	if (response.user){// NOTE: neu is used to simplify the code
 		neu = cameliseKeys(response.user);
@@ -380,16 +315,324 @@ function cameliseKeys( obj ) {
 	// Modular Underscore to camelCase function
 	function camelise(str) { return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); }); }
 }
+var uuid = {
+	gen:function(){
+		// Boilerplate code form http://stackoverflow.com/a/8809472/6539400
+		var d = new Date().getTime();
+		if(window.performance && typeof window.performance.now === "function")
+		d += performance.now(); //use high-precision timer if available
+		var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+			/[xy]/g,
+			function(c) {
+				var r = (d + Math.random()*16)%16 | 0;
+				d = Math.floor(d/16);
+				return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+			}
+		);
+		return uuid;
+	},
+	test:function( str ) {
+		// http://stackoverflow.com/a/13653180/6539400
+		if (typeof str !== "string") return false;
+		return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.toLowerCase());
+	},
+};
+function validateProjectId( id, onlyExisitng ) {
+	// id is project ID
+	// onlyExisitng (boolean, proper)
+	if (
+		( Number.isInteger(id) && dataArray.projects[id] ) ||
+		( typeof id === "string" && uuid.test(id) )
+	) return true;
+	else return false;
+}
+////////		////////		Comms			////////		////////
+function ajax( paramObj, url, onloadFunc ) {
+	// Validation
+	if (
+			typeof paramObj		!== "object" ||
+			typeof url			!== "string" ||
+			typeof onloadFunc	!== "function"
+		) return false;
+
+	var urlString = "https://todoist.com/API/v7/" + url,
+								// URL constructor
+		paramString	= "",		// String to be passed to Todoist API
+		keys		= Object.keys(paramObj),
+								// Sorthand
+		key;					// Shorthand
+
+	// Param string construction
+	for (var i = 0; i < keys.length; i++) {
+		key = keys[i];
+		if	( paramString.length > 1 ) paramString += "&";
+		if	( paramObj[key].toString() )
+			paramString += key+"="+String(paramObj[key]).replace(/'/g,"\"");
+		else return logger("Unexpected data type", false);
+	}
+
+	// Calling the HTTP request
+	var xhr = new XMLHttpRequest();
+		xhr.onload = function() {onloadFunc( JSON.parse(xhr.response) );};
+		xhr.open( "POST", urlString );
+		xhr.setRequestHeader(
+			"Content-type", "application/x-www-form-urlencoded" );
+		xhr.send( paramString );
+}
+this.sync						= function () {
+	// Validate presence of token
+	if		( !that.token ) return logger ("No Token", false);
+
+	// Prevent too many tokens
+	if ( that.limit === countOfConn )
+		return logger("connection limit reached",false);
+		else countOfConn++;
+
+	// Detect if no connection present
+	if	(!navigator.onLine) {
+		// TODO: Offline handling
+		if (that.offline) that.offline();
+		return logger( "Offline" , false);
+	}
+
+	// Start xhr
+	ajax(
+		{
+			"token"			: this.token,
+			"sync_token"	: "*", // syncTokens.main, NOTE: Partial sync diabled until merging functionality is present
+			"resource_types": "['all']",
+		},
+		"sync",
+		loadEvent
+	);
+
+	function loadEvent( response ) {
+		console.log(response);
+		// Camelise response
+		response = cameliseKeys( response );
+
+		var fullSync;
+
+		// if (precom) { precom = precom(response); }
+		// if (precom) { return precom; }
+
+		// Error handling
+		// TODO: implement error handling
+		if (response.error) return logger(response, false);
+
+		// SyncToken validation
+		if		((syncTokens.main==="*") && response.fullSync)
+				// good
+				fullSync = true;
+		else if	((syncTokens.main!=="*") && !response.fullSync)
+				// good
+				fullSync = false;
+		else if	((syncTokens.main==="*") != response.fullSync)
+				// using != as XOR
+				return logger( "Unexpected Sync", false );
+
+		// Tempory code for testing purposes, will eventually be invalidated by better code
+		data = nativisor( response, true );
+		if ( data ) that.dataArray = data;
+		else 		return logger( data, false );
+
+		// Optional function
+		if (that.sync.oncomplete) that.sync.oncomplete( that.dataArray );
+
+		// End of connection, decrement connection count
+		countOfConn--;
+
+		// testing code
+	}
+};
+this.sync.oncomplete			= null;
+this.sync.iterator				= {
+	projects			: null,
+	collaborators		: null,
+	labels				: null,
+	liveNotifications	: null,
+	items				: null,
+	notes				: null,
+	projectNotes		: null,
+};
+this.syncFresh					= function () {
+	if (navigator.onLine) {
+		syncTokens.main = "*";
+		that.sync();
+	}
+	else logger( "syncFresh: offline, sync aborted" );
+};
+this.syncActivities				= function (func) {
+	console.log(that);
+	// TODO: support for requests > 100
+	if (!that.token) return false;
+	if (!that.dataArray.user.isPremium) return false; // Activity feed is premium only
+
+	// Prevent too many tokens
+	if ( that.limit === countOfConn )
+		return logger("connection limit reached",false);
+		else countOfConn++;
+
+	// Detect if no connection present
+	if	(!navigator.onLine) {
+		/* TODO: Offline handling */
+		if (that.offline) that.offline();
+		return logger( "Offline" , false);
+	}
+
+	var p = { "token" : that.token },	// Shorthand: paramObj
+		a = that.syncActivities,		// Shorthand: syncActivities Object
+		min, max;
+
+	// Optional Todoist API parameters
+	if ( a.objectType 		) p.object_type			= a.objectType;
+	if ( a.objectId 		) p.object_id			= a.objectId;
+	if ( a.eventType 		) p.event_type			= a.eventType;
+	if ( a.objectEventTypes	) p.object_event_types	= a.objectEventTypes;
+	if ( a.parentProjectId	) p.parent_project_id	= a.parentProjectId;
+	if ( a.parentItemId 	) p.parent_item_id		= a.parentItemId;
+	if ( a.initiatorId 		) p.initiator_id		= a.initiatorId;
+	if ( a.since 			) p.since				=
+							new Date(a.since).toISOString().slice(0, 16);
+	if ( a.until 			) p.until				=
+							new Date(a.until).toISOString().slice(0, 16);
+	if ( a.limit 			) p.limit				= a.limit;
+	if ( a.offset 			) p.offset				= a.offset;
+
+	if ( p.since && p.until && p.since > p.until ) return false;
+	if ( p.since && p.since instanceof Date && !isNaN(p.since.valueOf()) )
+			return false;
+	if ( p.until && p.until instanceof Date && !isNaN(p.until.valueOf()) )
+			return false;
+
+	ajax( p, "activity/get", loadEvent );
+
+	function loadEvent( response ) {
+		console.log(response);
+		var i,							// Looping variables
+			key;						// Working element
+
+		// Error handling
+		// TODO: implement error handling
+		if (response.error) return logger(response, false);
+
+		// Validation
+		if 		(Array.isArray(response)) {
+				logger ( "Valid response" );
+		} else	return logger("Invalid response", false); // bad response
+
+		if (a.save && !that.activities) that.activities = {};
+
+		min = max = new Date( response[0].event_date );
+
+		for( i = 0; i < response.length; i++ ) {
+			// Set working vars
+			activity = cameliseKeys(response[i]);
+			key = activity.id;
+
+			if		( activity.eventDate < min ) min = activity.id;
+			else if ( activity.eventDate > max ) max = activity.id;
+			// TODO: Referential data support
+
+			// Nativisation
+			activity.eventDate = new Date(activity.eventDate);
+			delete activity.id;
+			// console.log(activity.extraData);
+
+			// Optional iterator
+			if (a.iterator) a.iterator( activity );
+
+			// Build replacement object
+			if (a.save) that.activities[key] = activity;
+		} activity = key = null; // Housekeeping
+
+		console.log(
+			"Min: " + min.toISOString() +
+			"\nMax: " + max.toISOString()
+		);
+
+		// Optional function
+		if (a.oncomplete) a.oncomplete();
+
+		// End of connection, decrement connection count
+		countOfConn--;
+
+		// testing code
+	}
+};
+this.syncActivities.oncomplete	= null; // func
+this.syncActivities.save		= true; // Bool / Def-TRUE
+that.dataArray					= null;
+this.token						= null;
+this.write						= function ( obj ) {
+	var array = this.write.array; // Shorthand
+
+	// Nothing to write
+	if (array.length === 0) {
+		return logger( "Nothing to write to Todoist", true );
+	}
+
+	testObj = {
+		"commands"		: JSON.stringify(
+			[]
+		),
+		"token"			: this.token,
+	};
+
+	ajax(
+		testObj,
+		"sync",
+		loadEvent
+	);
+
+	function loadEvent(response) {
+
+	}
+};
+this.write.auto					= false;
+this.write.array				= [];
+////////		////////		Main			////////		////////
+////////		////////		Ex/Im-ports		////////		////////
+this.toJSON = function () {
+	// TODO: Do more
+	return JSON.stringify(that.dataArray);
+};
+this.saveState = function () {
+	// TODO: Do more
+	return {
+		dataArray:that.dataArray,
+		token:this.token,
+		sync_token:syncTokens.main
+	};
+};
+this.loadState = function (obj) {
+		// TODO: Do more
+		that.dataArray = obj.dataArray;
+	};
+////////		////////		Unsorted		////////		////////
+var convention = "camelCase";
+this.toConvention = function (type) {
+	var shorthand = { "cC":"camelCase", "CC":"CamelCase", "_" :"underscore", };
+
+	if (shorthand[type]) type = shorthand[type];
+	if ( convention === type ) return logger ( "Already done", true );
+
+	if ( type === "CamelCase" ) {}
+	if ( type === "camelCase" ) {}
+	if ( type === "underscore" ) {}
+	if ( type === "lowercase" ) {}
+	if ( type === "UPPERCASE" ) {}
+
+	convention = type;
+};
 this.inboxProject = function () {
-	if (!inboxProject || !dataSupport.projects[inboxProject]) return null;
+	if ( !inboxProject || !dataSupport.projects[inboxProject] ) return null;
 
 	var obj = {},
 		keys = Object.keys(dataSupport.projects[inboxProject]);
 
-	for (var i = 0; i < keys.length; i++) {
-		// keys[i]
-		obj[keys[i]] = that.dataArray.items[keys[i]];
-	}
+	for (var i = 0; i < keys.length; i++)
+		{ obj[ keys[i] ] = that.items[ keys[i] ]; }
 
 	return obj;
 };
