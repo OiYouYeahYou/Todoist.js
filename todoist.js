@@ -1,3 +1,4 @@
+/* jshint laxbreak : true */
 function Todoist(){
 var that = this,		// Enables sub functions to access `this`
 	countOfConn = 0,	// Counts the number of open XHRs
@@ -22,6 +23,7 @@ this.labels				= {};
 this.liveNotifications	= {};
 this.collaborators		= {};
 this.notes				= {};
+this.lastSync			= null;
 ////////		////////		Private funcs	////////		////////
 function logger( message, r ) {
 	if ( that.logger.tell  ) console.log( message );
@@ -192,7 +194,6 @@ function nativisor( response, camelised ) {
 		// Build replacement object
 		that.liveNotifications[key] = notification;
 	} notification = key = null; // Housekkieping
-
 	/*						Items								  */
 	for( i = 0; i < response.items.length; i++ ) {
 		// Camelising
@@ -398,7 +399,7 @@ this.sync						= function () {
 	// Start xhr
 	ajax(
 		{
-			"token"			: this.token,
+			"token"			: that.token,
 			"sync_token"	: "*", // syncTokens.main, NOTE: Partial sync diabled until merging functionality is present
 			"resource_types": "['all']",
 		},
@@ -407,7 +408,6 @@ this.sync						= function () {
 	);
 
 	function loadEvent( response ) {
-		console.log(response);
 		// Camelise response
 		response = cameliseKeys( response );
 
@@ -435,6 +435,9 @@ this.sync						= function () {
 		data = nativisor( response, true );
 		if ( data ) that.dataArray = data;
 		else 		return logger( data, false );
+
+		// Set lastSync
+		that.lastSync = new Date();
 
 		// Optional function
 		if (that.sync.oncomplete) that.sync.oncomplete( that.dataArray );
@@ -617,7 +620,6 @@ this.write						= function ( obj ) {
 };
 this.write.auto					= false;
 this.write.array				= [];
-////////		////////		Main			////////		////////
 ////////		////////		Ex/Im-ports		////////		////////
 this.toJSON = function () {
 	// TODO: Do more
