@@ -455,6 +455,32 @@ this.sync.iterator				= {
 	notes				: null,
 	projectNotes		: null,
 };
+this.authenticateToken			= function ( testToken, callback ) {
+	if ( typeof testToken === "undefined" ) testToken = that.token;
+	if ( typeof testToken !== "string" ) output({
+		validity : false,
+		token : testToken
+	});
+
+	ajax(
+		{
+			"token"			: testToken,
+			"sync_token"	: "*",
+			"resource_types": "['user']",
+		},
+		"sync",
+		loadEvent
+	);
+
+	function loadEvent ( response ) {
+		response.token = response.token ? response.token : testToken;
+		response.validity = response.user ? true : false;
+		output(response);
+	}
+	function output ( obj ) {
+		if ( callback ) callback( obj ); else console.log( obj );
+	}
+};
 this.syncFresh					= function () {
 	if (navigator.onLine) {
 		syncTokens.main = "*";
