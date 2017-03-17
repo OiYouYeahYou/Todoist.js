@@ -49,26 +49,26 @@ function nativisor( response, camelised ) {
 	if ( !camelised ) response = cameliseKeys( response );
 
 	var i, e,				// Looping variables
-	key,				// Working element
-	iter = that.sync.iterator,
-	//Shorthand
-	project,			// Individual working element
-	collaborator,		// Individual working element
-	label,				// Individual working element
-	notification,		// Individual working element
-	item,				// Individual working element
-	note,				// Individual working element
-	projectColours = [	// Array of colours used by projects
-		"#95ef63","#ff8581","#ffc471","#f9ec75","#a8c8e4","#d2b8a3",
-		"#e2a8e4","#cccccc","#fb886e","#ffcc00","#74e8d3","#3bd5fb",
-		"#dc4fad","#ac193d","#d24726","#82ba00","#03b3b2","#008299",
-		"#5db2ff","#0072c6","#000000","#777777",
-	],
-	labelColours = [	// Array of colours used by labels
-		"#019412","#a39d01","#e73d02","#e702a4","#9902e7","#1d02e7",
-		"#0082c5","#555555","#008299","#03b3b2","#ac193d","#82ba00",
-		"#111111",
-	];
+		key,				// Working element
+		iter = that.sync.iterator,
+		//Shorthand
+		project,			// Individual working element
+		collaborator,		// Individual working element
+		label,				// Individual working element
+		notification,		// Individual working element
+		item,				// Individual working element
+		note,				// Individual working element
+		projectColours = [	// Array of colours used by projects
+			"#95ef63","#ff8581","#ffc471","#f9ec75","#a8c8e4","#d2b8a3",
+			"#e2a8e4","#cccccc","#fb886e","#ffcc00","#74e8d3","#3bd5fb",
+			"#dc4fad","#ac193d","#d24726","#82ba00","#03b3b2","#008299",
+			"#5db2ff","#0072c6","#000000","#777777",
+		],
+		labelColours = [	// Array of colours used by labels
+			"#019412","#a39d01","#e73d02","#e702a4","#9902e7","#1d02e7",
+			"#0082c5","#555555","#008299","#03b3b2","#ac193d","#82ba00",
+			"#111111",
+		];
 
 	// Validation
 	if 	( // TODO: eventually this should be handled by the maps
@@ -316,6 +316,15 @@ function cameliseKeys( obj ) {
 	// Modular Underscore to camelCase function
 	function camelise(str) { return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); }); }
 }
+function validateProjectId( id, onlyExisitng ) {
+	// id is project ID
+	// onlyExisitng (boolean, proper)
+	if (
+		( Number.isInteger(id) && dataArray.projects[id] ) ||
+		( typeof id === "string" && uuid.test(id) )
+	) return true;
+	else return false;
+}
 var uuid = {
 	gen:function(){
 		// Boilerplate code form http://stackoverflow.com/a/8809472/6539400
@@ -338,15 +347,6 @@ var uuid = {
 		return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.toLowerCase());
 	},
 };
-function validateProjectId( id, onlyExisitng ) {
-	// id is project ID
-	// onlyExisitng (boolean, proper)
-	if (
-		( Number.isInteger(id) && dataArray.projects[id] ) ||
-		( typeof id === "string" && uuid.test(id) )
-	) return true;
-	else return false;
-}
 ////////		////////		Comms			////////		////////
 function ajax( paramObj, url, onloadFunc ) {
 	// Validation
@@ -400,7 +400,7 @@ this.sync						= function () {
 	ajax(
 		{
 			"token"			: that.token,
-			"sync_token"	: "*", // syncTokens.main, NOTE: Partial sync diabled until merging functionality is present
+			"sync_token"	: syncTokens.main,
 			"resource_types": "['all']",
 		},
 		"sync",
@@ -439,6 +439,8 @@ this.sync						= function () {
 		// Set lastSync
 		that.lastSync = new Date();
 
+		that.sync.state = true;
+
 		// Optional function
 		if (that.sync.oncomplete) that.sync.oncomplete( that.dataArray );
 
@@ -458,6 +460,7 @@ this.sync.iterator				= {
 	notes				: null,
 	projectNotes		: null,
 };
+this.sync.state					= false;
 this.authenticateToken			= function ( testToken, callback ) {
 	if ( typeof testToken === "undefined" ) testToken = that.token;
 	if ( typeof testToken !== "string" ) output({
@@ -491,8 +494,7 @@ this.syncFresh					= function () {
 	}
 	else logger( "syncFresh: offline, sync aborted" );
 };
-this.syncActivities				= function (func) {
-	console.log(that);
+this.syncActivities				= function () {
 	// TODO: support for requests > 100
 	if (!that.token) return false;
 	if (!that.dataArray.user.isPremium) return false; // Activity feed is premium only
@@ -621,11 +623,11 @@ this.write						= function ( obj ) {
 this.write.auto					= false;
 this.write.array				= [];
 ////////		////////		Ex/Im-ports		////////		////////
-this.toJSON = function () {
+this.toJSON		= function () {
 	// TODO: Do more
 	return JSON.stringify(that.dataArray);
 };
-this.saveState = function () {
+this.saveState	= function () {
 	// TODO: Do more
 	return {
 		dataArray:that.dataArray,
@@ -633,7 +635,7 @@ this.saveState = function () {
 		sync_token:syncTokens.main
 	};
 };
-this.loadState = function (obj) {
+this.loadState	= function (obj) {
 		// TODO: Do more
 		that.dataArray = obj.dataArray;
 	};
