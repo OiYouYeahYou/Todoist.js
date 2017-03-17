@@ -23,7 +23,9 @@ this.labels				= {};
 this.liveNotifications	= {};
 this.collaborators		= {};
 this.notes				= {};
+this.user				= null;
 this.lastSync			= null;
+that.completed			= null;
 ////////		////////		Private funcs	////////		////////
 function logger( message, r ) {
 	if ( that.logger.tell  ) console.log( message );
@@ -274,7 +276,7 @@ function nativisor( response, camelised ) {
 
 		delete neu.token; // XXX: ???
 
-		response.user = neu;
+		response.user = that.user = neu;
 		neu = null;
 	}
 
@@ -461,6 +463,56 @@ this.sync.iterator				= {
 	projectNotes		: null,
 };
 this.sync.state					= false;
+this.getCompleted				= function ( callback ) {
+	var completed,
+		ajaxSet = [];
+
+	// Validation, set counted or abort
+	if		( typeof that.user.completedCount === "number" )
+		completed =  that.user.completedCount;
+	else if ( typeof that.stats.completed_count === "number" )
+		completed =  that.stats.completed_count;
+	else return logger( "Needs completed count form user or stats", false );
+
+	// Set initial object / Destroy any previous results
+	that.completed = { items : [], projects : {}, };
+
+	// If no completed, abort
+	if ( completed === 0 ) return false;
+
+	// Loop to create array of ajax instructions
+	for (var i = 0; i < completed; i+=51)
+		ajaxSet.push({ token : that.token, limit : 50, offset : String(i), });
+
+	// Make first ajax
+	ajax( ajaxSet.pop(), "completed/get_all", loadEvent );
+
+	function loadEvent( response ) {
+		// Push items(tasks) to array
+		that.completed.items.push.apply(that.completed.items,response.items);
+
+		// Push projects to array
+		Object.values(response.projects).forEach(function (item) {
+			// If the project does not exist, creatte it
+			if ( !that.completed.projects[item.id] )
+				that.completed.projects[item.id] = cameliseKeys(item);
+		});
+
+		// If there are more AJAX to make, pop it and send
+		if (ajaxSet[0]) ajax( ajaxSet.pop(), "completed/get_all", loadEvent );
+
+		// If all AJAX are complete
+		else {
+			// For each item camelise it
+			that.completed.items.forEach(
+				function(item,i){that.completed.items[i] = cameliseKeys(item);}
+			);
+
+			// If callback exists, call it
+			if ( callback ) callback( that.completed );
+		}
+	}
+};
 this.authenticateToken			= function ( testToken, callback ) {
 	if ( typeof testToken === "undefined" ) testToken = that.token;
 	if ( typeof testToken !== "string" ) output({
