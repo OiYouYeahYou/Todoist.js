@@ -358,6 +358,9 @@ function ajax( paramObj, url, onloadFunc ) {
 			typeof onloadFunc	!== "function"
 		) return false;
 
+	if ( !paramObj.token )
+		paramObj.token = that.token;
+
 	var urlString = "https://todoist.com/API/v7/" + url,
 								// URL constructor
 		paramString	= "",		// String to be passed to Todoist API
@@ -401,7 +404,6 @@ this.sync						= function () {
 	// Start xhr
 	ajax(
 		{
-			"token"			: that.token,
 			"sync_token"	: syncTokens.main,
 			"resource_types": "['all']",
 		},
@@ -482,7 +484,7 @@ this.getCompleted				= function ( callback ) {
 
 	// Loop to create array of ajax instructions
 	for (var i = 0; i < completed; i+=51)
-		ajaxSet.push({ token : that.token, limit : 50, offset : String(i), });
+		ajaxSet.push({ limit : 50, offset : String(i), });
 
 	// Make first ajax
 	ajax( ajaxSet.pop(), "completed/get_all", loadEvent );
@@ -563,7 +565,7 @@ this.syncActivities				= function () {
 		return logger( "Offline" , false);
 	}
 
-	var p = { "token" : that.token },	// Shorthand: paramObj
+	var p = {},	// Shorthand: paramObj
 		a = that.syncActivities,		// Shorthand: syncActivities Object
 		min, max;
 
@@ -659,7 +661,6 @@ this.write						= function ( obj ) {
 		"commands"		: JSON.stringify(
 			[]
 		),
-		"token"			: this.token,
 	};
 
 	ajax(
