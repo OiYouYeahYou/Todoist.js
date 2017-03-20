@@ -697,6 +697,20 @@ this.write						= function ( obj ) {
 };
 this.write.auto					= false;
 this.write.array				= [];
+this.getBackup = function ( cb ) {
+	if ( that.sync.state )
+		logger( "Sync needs to be made to validate premium", false );
+	if ( that.user.isPremium )
+		logger( "This use does not have premium", false );
+	return ajax(
+		{}, "backups/get",
+		function (response) {
+			this.backups = response;
+			if ( cb ) cb();
+		}
+	);
+};
+this.backups = null;
 ////////		////////		Ex/Im-ports		////////		////////
 this.toJSON		= function () {
 	// TODO: Do more
