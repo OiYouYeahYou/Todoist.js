@@ -515,6 +515,28 @@ this.getCompleted				= function ( callback ) {
 		}
 	}
 };
+this.getStats					= function () {
+	ajax( {}, "completed/get_stats", loadEvent );
+
+	function loadEvent( response ) {
+		var stats = that.stats = cameliseKeys(response);
+			stats.goals = cameliseKeys(stats.goals);
+			stats.daysItems			.forEach( keyInArray );
+			stats.karmaUpdateReasons.forEach( keyInArray );
+			stats.weekItems			.forEach( keyInArray );
+
+		// that.stats = stats;
+
+		if ( that.getCompleted.oncomplete )
+			that.getCompleted.oncomplete(that.stats);
+
+		function keyInArray( item, i, array ) {
+			array[i] = cameliseKeys(item);
+		}
+	}
+};
+this.getStats.oncomplete		= null;
+this.stats						= null;
 this.authenticateToken			= function ( testToken, callback ) {
 	if ( typeof testToken === "undefined" ) testToken = that.token;
 	if ( typeof testToken !== "string" ) output({
