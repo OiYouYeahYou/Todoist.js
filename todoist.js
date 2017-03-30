@@ -672,21 +672,21 @@ this.syncActivities.save		= true; // Bool / Def-TRUE
 that.dataArray					= null;
 this.token						= null;
 this.write						= function ( obj ) {
-	var array = this.write.array; // Shorthand
+	var cmds = [];
 
-	// Nothing to write
-	if (array.length === 0) {
-		return logger( "Nothing to write to Todoist", true );
-	}
-
-	testObj = {
-		"commands"		: JSON.stringify(
-			[]
-		),
-	};
+	[	// Uniform commands map
+		[ deletes,		"item_delete"	],
+		[ completes,	"item_complete"	],
+	]
+	.forEach( function ( v ) {
+		if ( v[0].ids.length > 0 )
+			cmds.push(
+				{ "type" : v[1],"uuid" : v[0].uuid,"args" : {"ids" : v[0].ids} }
+			);
+	} );
 
 	ajax(
-		testObj,
+		{ "commands" : JSON.stringify( cmds ), },
 		"sync",
 		loadEvent
 	);
@@ -696,7 +696,6 @@ this.write						= function ( obj ) {
 	}
 };
 this.write.auto					= false;
-this.write.array				= [];
 this.getBackup = function ( cb ) {
 	if ( that.sync.state )
 		logger( "Sync needs to be made to validate premium", false );
@@ -711,6 +710,32 @@ this.getBackup = function ( cb ) {
 	);
 };
 this.backups = null;
+////////		////////		Write			////////		////////
+var deletes		= { uuid : uuid.gen(), ids : [] };
+var completes	= { uuid : uuid.gen(), ids : [] };
+this.deleteItem = function ( item, cancel ) {
+	return tinker( item, cancel, that.items, deletes );
+};
+this.completeItem = function ( item, cancel ) {
+	return tinker( item, cancel, that.items, completes );
+};
+function tinker( item, cancel, location, register ) {
+	var id = getId( item, location ),
+		ret = null;
+
+	if (!id) return false;
+
+	var i = register.ids.findIndex( function (a) { return a === id; } );
+
+	if		( !cancel && i === -1 )	ret = register.ids.push(id);
+	else if ( !cancel && i  >  -1 )	ret = true;
+	else if (  cancel && i  >  -1 )	ret = register.ids.splice( i, 1 );
+	else if (  cancel && i === -1 )	ret = true;
+
+	if ( that.write.auto ) that.write();
+
+	return ret;
+}
 ////////		////////		Ex/Im-ports		////////		////////
 this.toJSON		= function () {
 	// TODO: Do more
@@ -756,4 +781,13 @@ this.inboxProject = function () {
 	return obj;
 };
 this.inboxProject.key = inboxProject;
+function getId( item, location ) {
+	var type = typeof item;
+	if ( type === "object" && location[ item.id ] )
+		return item.id;
+	if ( ( type === "string" || type === "number" ) && location[ item ] )
+		return item;
+
+	return false;
+}
 } // END OF CLASS //
