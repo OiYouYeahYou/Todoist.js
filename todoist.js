@@ -674,6 +674,48 @@ this.token						= null;
 this.write						= function ( obj ) {
 	var cmds = [];
 
+	if (moveItems.go) {
+		var moveCommands = Object.values(moveItems).reduce( function(out,value){
+			// Set shorthand variables
+			var i = value.item,
+				l = value.losing,
+				g = value.gaining;
+
+			// If value has been nulled, skip value
+			if		( !value || typeof value !== "object" )
+					{ return out; }
+
+			// If losing project doesn't exists, create it
+			else if ( out[ g ] && !out[ g ].args.project_items[ l ] )
+					{ out[ g ].args.project_items[ l ] = [ i ]; }
+
+			// If losing project exists, push to it
+			else if	( out[ g ] && out[ g ].args.project_items[ l ] )
+					{ out[ g ].args.project_items[ l ].push( i ); }
+
+			// Else create command object
+			else	{
+				out[ g ] = {
+					"type": "item_move",
+					"uuid": uuid.gen(),
+					"args": {
+						"project_items"	: {},
+						"to_project"	: g,
+					},
+				};
+				out[ g ].args.project_items[ l ] = [ i ];
+			}
+
+			// Add uuid to recipt
+			value.uuid = out[ g ].uuid;
+
+			// Return Accumulator
+			return out;
+		}, {} );
+
+		[].push.apply( cmds, Object.values( moveCommands ) );
+	}
+
 	[	// Uniform commands map
 		[ deletes,		"item_delete"	],
 		[ completes,	"item_complete"	],
@@ -711,8 +753,46 @@ this.getBackup = function ( cb ) {
 };
 this.backups = null;
 ////////		////////		Write			////////		////////
+var moveItems	= { go : false };
 var deletes		= { uuid : uuid.gen(), ids : [] };
 var completes	= { uuid : uuid.gen(), ids : [] };
+this.moveItem = function ( item, project, cancel ) {
+	// Validate and return item id
+	var id = getId( item, that.items ),
+		gaining = getId( project, that.projects );
+
+	// If invalid id, abort
+	if ( !id )
+		return logger( "Invalid item ID or object :> " + id, false );
+
+	// Set move record for .write()
+	if		( !cancel && gaining ) {
+		moveItems[ id ] = {
+			item	: id,		//
+			losing	: that.items[ id ].projectId,
+			gaining	: gaining,	//
+			uuid	: null,		// UUID will be added once converted
+		};
+		moveItems.go = true;
+
+		if ( that.write.auto ) that.write();
+
+		// Return record as recipt
+		return moveItems[ id ];
+	}
+	else if ( !cancel && !gaining  )
+		return logger( "Invalid project ID or object :> " + gaining, false );
+	else if ( cancel && !moveItems[ id ] )
+		return true;
+	else if ( cancel && moveItems[ id ] ) {
+		moveItems[ id ].item	= false;
+		moveItems[ id ].losing	= false;
+		moveItems[ id ].gaining	= false;
+		moveItems[ id ].uuid	= false;
+		moveItems[ id ]			= null;
+		return true;
+	}
+};
 this.deleteItem = function ( item, cancel ) {
 	return tinker( item, cancel, that.items, deletes );
 };
