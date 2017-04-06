@@ -349,6 +349,52 @@ var uuid = {
 		return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.toLowerCase());
 	},
 };
+function validateItem( obj ) {
+	var args = {};
+
+	// Get, Set and Validate ID
+	args.id = getId( obj.id, that.items );
+	if ( !args.id ) return false;
+
+	// Propety validation and setting
+	if ( obj.content		) {
+		// If .content is string set command
+		if ( typeof obj.content === "string" )
+			args.content = obj.content;
+
+		// If .content is string convertable, set converted string
+		else if ( typeof obj.content.toString === "function" ) {
+			args.content = obj.content.toString();
+			logger(".content is not a string, but is being converted");
+		}
+
+		// Else to content settable, abort
+		else return logger(
+			".content is not string and can't be converted",
+			false
+		);
+	}
+	if ( obj.labels			) {
+		// Validate array of numbers
+		if (
+				// Is Array && Is not array of numbers
+				! Array.isArray(obj.labels) ||
+				! obj.labels.every(function( value ){
+					return getId( value, that.labels ) ? true : false;
+				})
+			)
+			return logger( "Invalid labels property", false );
+
+		// Set lables property
+		args.labels			= obj.labels;
+	}
+
+	// Auto .write call
+	pauseAutoWrite();
+
+	// Complete function
+	return args;
+}
 ////////		////////		Comms			////////		////////
 function ajax( paramObj, url, onloadFunc ) {
 	// Validation
@@ -716,6 +762,19 @@ this.write						= function ( obj ) {
 		[].push.apply( cmds, Object.values( moveCommands ) );
 	}
 
+	// If updates.go
+	if ( updates.go ) {
+		Object.keys( updates ).forEach( function ( key ) {
+			// push non-null values to cmds array
+			if ( updates[ key ] ) cmds.push( updates[ key ] );
+			// null and delete each propety
+			updates[ key ] = null;
+			delete updates[ key ];
+		} );
+		// set updates.go as false
+		updates.go = false;
+	}
+
 	[	// Uniform commands map
 		[ deletes,		"item_delete"	],
 		[ completes,	"item_complete"	],
@@ -754,6 +813,7 @@ this.getBackup = function ( cb ) {
 this.backups = null;
 ////////		////////		Write			////////		////////
 var moveItems	= { go : false };
+var updates		= { go : false };
 var deletes		= { uuid : uuid.gen(), ids : [] };
 var completes	= { uuid : uuid.gen(), ids : [] };
 this.moveItem = function ( item, project, cancel ) {
@@ -816,6 +876,69 @@ function tinker( item, cancel, location, register ) {
 
 	return ret;
 }
+this.updateItem = function ( obj, cancel ) {
+	// TODO: Cancel implementation
+
+	// Prevent writes during function calls
+	pauseAutoWrite( true );
+
+	// Validatiton
+	if ( typeof obj !== "object" ) return abortSelf();
+
+	var
+		recipt = { // Recipt object that is returned
+			// Update object that is sent to Todoist Servers
+			"cmd" : {
+				"type" : "update_item",
+				"uuid" : uuid.gen(),
+				"args" : validateItem( obj ),
+			},
+			// Addistional endpoing calls
+			"exts" : {}
+		},
+
+		// Shorthand
+		args = recipt.cmd.args,
+		exts = recipt.exts;
+
+	if ( !args ) return abortSelf();
+
+	// // External calls
+	// If .projectId, call and validate move command
+	if ( obj.projectId		) {
+		exts.projectMove	= that.moveItem( obj, obj.projectId );
+		if ( !exts.projectMove )
+			return logger( "Invalid item or project ID", abortSelf() );
+		logger( "You can also use .projectMove()" );
+	}
+	// If .checked or .isCompleted, call and validate complete command
+	if ( obj.checked || obj.isCompleted ) {
+		exts.completeItem	= that.completeItem( obj );
+		if ( !exts.completeItem )
+			return logger( "Invalid item ID", abortSelf() );
+		logger( "You can also use .completeItem()" );
+	}
+	// If .isDeleted, call and validate complete command
+	if ( obj.isDeleted ) {
+		exts.deleteItem	= that.deleteItem( obj );
+		if ( !exts.deleteItem )
+			return logger( "Invalid item ID", abortSelf() );
+		logger( "WHY ARE YOU DELETEING WITH THIS?" );
+	}
+
+	// Update update register
+	updates[ args.id ] = recipt.args;
+	updates.go = true;
+
+	// Resume previous auto write, and call if true
+	pauseAutoWrite( false );
+
+	// Complete function by returning recipt
+	return recipt;
+
+	// Unified function to unpause without calling .write and return false
+	function abortSelf() { pauseAutoWrite( false, true ); return false; }
+};
 ////////		////////		Ex/Im-ports		////////		////////
 this.toJSON		= function () {
 	// TODO: Do more
@@ -869,5 +992,25 @@ function getId( item, location ) {
 		return item;
 
 	return false;
+}
+var holdingAuto = null;
+function pauseAutoWrite( bool, dnr ) {
+	// If bool returns
+	//	TRUE	: pause
+	//	FALSE	: unpause
+	// If dnr returns
+	//	TRUE	: do not call .write()
+	//	FALSE	: call .write()
+
+	if ( bool ) {
+		holdingAuto = that.write.auto;
+		that.write.auto = false;
+		return holdingAuto;
+	}
+	else {
+		that.write.auto = holdingAuto;
+		if ( that.write.auto && !dnr )
+			return that.write();
+	}
 }
 } // END OF CLASS //
