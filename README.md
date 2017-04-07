@@ -15,6 +15,8 @@ var test = new Todoist();
 	// Call the sync function
 ```
 
+[See reference.md for list of object propeties](refernce.md)
+
 ### Upcoming Functionality
 
 ### Compatibility
