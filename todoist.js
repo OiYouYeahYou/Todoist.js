@@ -17,15 +17,16 @@ var that = this,		// Enables sub functions to access `this`
 	imgUrlBase = "https://dcff1xvirvpfp.cloudfront.net/";
 						// Base image url
 ////////		////////		Main Object		////////		////////
-this.items				= {};
-this.projects			= {};
-this.labels				= {};
-this.liveNotifications	= {};
-this.collaborators		= {};
-this.notes				= {};
-this.user				= null;
-this.lastSync			= null;
+that.items				= {};
+that.projects			= {};
+that.labels				= {};
+that.liveNotifications	= {};
+that.collaborators		= {};
+that.notes				= {};
+that.user				= null;
+that.lastSync			= null;
 that.completed			= null;
+that.activities			= null;
 ////////		////////		Private funcs	////////		////////
 function logger( message, r ) {
 	if ( that.logger.tell  ) console.log( message );
@@ -41,7 +42,7 @@ function logger( message, r ) {
 	// els return false
 	else					return false;
 }
-this.logger = {
+that.logger = {
 	tell		:	false,
 	track		:	false,
 	messages	:	[],
@@ -365,14 +366,11 @@ function validateItem( obj ) {
 		// If .content is string convertable, set converted string
 		else if ( typeof obj.content.toString === "function" ) {
 			args.content = obj.content.toString();
-			logger(".content is not a string, but is being converted");
+			logger( ".content is not a string, but is being converted" );
 		}
 
 		// Else to content settable, abort
-		else return logger(
-			".content is not string and can't be converted",
-			false
-		);
+		else return csn( ".content is not string and can't be converted" );
 	}
 	if ( obj.labels			) {
 		// Validate array of numbers
@@ -394,6 +392,10 @@ function validateItem( obj ) {
 
 	// Complete function
 	return args;
+}
+function csn( msg ) {
+	// "Computer says no" - Some bloke from the Jop Center
+	return logger( msg, false );
 }
 ////////		////////		Comms			////////		////////
 function ajax( paramObj, url, onloadFunc ) {
@@ -431,7 +433,9 @@ function ajax( paramObj, url, onloadFunc ) {
 			"Content-type", "application/x-www-form-urlencoded" );
 		xhr.send( paramString );
 }
-this.sync						= function () {
+that.offline					= null;
+that.limit						= null;
+that.sync						= function () {
 	// Validate presence of token
 	if		( !that.token ) return logger ("No Token", false);
 
@@ -463,9 +467,6 @@ this.sync						= function () {
 
 		var fullSync;
 
-		// if (precom) { precom = precom(response); }
-		// if (precom) { return precom; }
-
 		// Error handling
 		// TODO: implement error handling
 		if (response.error) return logger(response, false);
@@ -479,7 +480,7 @@ this.sync						= function () {
 				fullSync = false;
 		else if	((syncTokens.main==="*") != response.fullSync)
 				// using != as XOR
-				return logger( "Unexpected Sync", false );
+				logger( "Unexpected Sync", false );
 
 		// Tempory code for testing purposes, will eventually be invalidated by better code
 		data = nativisor( response, true );
@@ -500,8 +501,8 @@ this.sync						= function () {
 		// testing code
 	}
 };
-this.sync.oncomplete			= null;
-this.sync.iterator				= {
+that.sync.oncomplete			= null;
+that.sync.iterator				= {
 	projects			: null,
 	collaborators		: null,
 	labels				: null,
@@ -510,8 +511,8 @@ this.sync.iterator				= {
 	notes				: null,
 	projectNotes		: null,
 };
-this.sync.state					= false;
-this.getCompleted				= function ( callback ) {
+that.sync.state					= false;
+that.getCompleted				= function ( callback ) {
 	var completed,
 		ajaxSet = [];
 
@@ -537,7 +538,7 @@ this.getCompleted				= function ( callback ) {
 
 	function loadEvent( response ) {
 		// Push items(tasks) to array
-		that.completed.items.push.apply(that.completed.items,response.items);
+		[].push.apply(that.completed.items,response.items);
 
 		// Push projects to array
 		Object.values(response.projects).forEach(function (item) {
@@ -561,7 +562,7 @@ this.getCompleted				= function ( callback ) {
 		}
 	}
 };
-this.getStats					= function () {
+that.getStats					= function () {
 	ajax( {}, "completed/get_stats", loadEvent );
 
 	function loadEvent( response ) {
@@ -581,9 +582,9 @@ this.getStats					= function () {
 		}
 	}
 };
-this.getStats.oncomplete		= null;
-this.stats						= null;
-this.authenticateToken			= function ( testToken, callback ) {
+that.getStats.oncomplete		= null;
+that.stats						= null;
+that.authenticateToken			= function ( testToken, callback ) {
 	if ( typeof testToken === "undefined" ) testToken = that.token;
 	if ( typeof testToken !== "string" ) output({
 		validity : false,
@@ -609,14 +610,14 @@ this.authenticateToken			= function ( testToken, callback ) {
 		if ( callback ) callback( obj ); else console.log( obj );
 	}
 };
-this.syncFresh					= function () {
+that.syncFresh					= function () {
 	if (navigator.onLine) {
 		syncTokens.main = "*";
 		that.sync();
 	}
 	else logger( "syncFresh: offline, sync aborted" );
 };
-this.syncActivities				= function () {
+that.syncActivities				= function () {
 	// TODO: support for requests > 100
 	if (!that.token) return false;
 	if (!that.dataArray.user.isPremium) return false; // Activity feed is premium only
@@ -713,14 +714,14 @@ this.syncActivities				= function () {
 		// testing code
 	}
 };
-this.syncActivities.oncomplete	= null; // func
-this.syncActivities.save		= true; // Bool / Def-TRUE
+that.syncActivities.oncomplete	= null; // func
+that.syncActivities.save		= true; // Bool / Def-TRUE
 that.dataArray					= null;
-this.token						= null;
-this.write						= function ( obj ) {
 	var cmds = [];
+that.token						= null;
+that.write						= function ( obj ) {
 
-	if (moveItems.go) {
+	if ( moveItems.go ) {
 		var moveCommands = Object.values(moveItems).reduce( function(out,value){
 			// Set shorthand variables
 			var i = value.item,
@@ -796,8 +797,8 @@ this.write						= function ( obj ) {
 
 	}
 };
-this.write.auto					= false;
-this.getBackup = function ( cb ) {
+that.write.auto					= false;
+that.getBackup = function ( cb ) {
 	if ( that.sync.state )
 		logger( "Sync needs to be made to validate premium", false );
 	if ( that.user.isPremium )
@@ -805,18 +806,18 @@ this.getBackup = function ( cb ) {
 	return ajax(
 		{}, "backups/get",
 		function (response) {
-			this.backups = response;
+			that.backups = response;
 			if ( cb ) cb();
 		}
 	);
 };
-this.backups = null;
+that.backups = null;
 ////////		////////		Write			////////		////////
 var moveItems	= { go : false };
 var updates		= { go : false };
 var deletes		= { uuid : uuid.gen(), ids : [] };
 var completes	= { uuid : uuid.gen(), ids : [] };
-this.moveItem = function ( item, project, cancel ) {
+that.moveItem = function ( item, project, cancel ) {
 	// Validate and return item id
 	var id = getId( item, that.items ),
 		gaining = getId( project, that.projects );
@@ -853,10 +854,10 @@ this.moveItem = function ( item, project, cancel ) {
 		return true;
 	}
 };
-this.deleteItem = function ( item, cancel ) {
+that.deleteItem = function ( item, cancel ) {
 	return tinker( item, cancel, that.items, deletes );
 };
-this.completeItem = function ( item, cancel ) {
+that.completeItem = function ( item, cancel ) {
 	return tinker( item, cancel, that.items, completes );
 };
 function tinker( item, cancel, location, register ) {
@@ -940,11 +941,11 @@ this.updateItem = function ( obj, cancel ) {
 	function abortSelf() { pauseAutoWrite( false, true ); return false; }
 };
 ////////		////////		Ex/Im-ports		////////		////////
-this.toJSON		= function () {
+that.toJSON		= function () {
 	// TODO: Do more
 	return JSON.stringify(that.dataArray);
 };
-this.saveState	= function () {
+that.saveState	= function () {
 	// TODO: Do more
 	return {
 		dataArray:that.dataArray,
@@ -952,13 +953,13 @@ this.saveState	= function () {
 		sync_token:syncTokens.main
 	};
 };
-this.loadState	= function (obj) {
+that.loadState	= function (obj) {
 		// TODO: Do more
 		that.dataArray = obj.dataArray;
 	};
 ////////		////////		Unsorted		////////		////////
 var convention = "camelCase";
-this.toConvention = function (type) {
+that.toConvention = function (type) {
 	var shorthand = { "cC":"camelCase", "CC":"CamelCase", "_" :"underscore", };
 
 	if (shorthand[type]) type = shorthand[type];
@@ -972,7 +973,7 @@ this.toConvention = function (type) {
 
 	convention = type;
 };
-this.inboxProject = function () {
+that.inboxProject = function () {
 	if ( !inboxProject || !dataSupport.projects[inboxProject] ) return null;
 
 	var obj = {},
@@ -983,7 +984,7 @@ this.inboxProject = function () {
 
 	return obj;
 };
-this.inboxProject.key = inboxProject;
+that.inboxProject.key = inboxProject;
 function getId( item, location ) {
 	var type = typeof item;
 	if ( type === "object" && location[ item.id ] )
