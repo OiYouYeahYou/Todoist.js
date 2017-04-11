@@ -354,8 +354,10 @@ function validateItem( obj ) {
 	var args = {};
 
 	// Get, Set and Validate ID
-	args.id = getId( obj.id, that.items );
-	if ( !args.id ) return false;
+	if ( obj.id ) {
+		args.id = getId( obj.id, that.items );
+		if ( !args.id ) return false;
+	}
 
 	// Propety validation and setting
 	if ( obj.content		) {
@@ -763,15 +765,43 @@ that.write						= function ( obj ) {
 		[].push.apply( cmds, Object.values( moveCommands ) );
 	}
 
+	if ( creates.go ) {
+		Object.keys( creates ).forEach(function ( key ) {
+			// Ignore go key
+			if ( key === "go" ) return;
+
+			// push non-null values to cmds array
+			if ( creates [ key ] )
+				cmds.push({
+					"type"		: "item_add",
+					"temp_id"	: creates[ key ].uuid,
+					"uuid"		: creates[ key ].uuid,
+					"args"		: creates[ key ].args,
+				});
+
+			// null and delete each propety
+			creates [ key ] = null;
+			delete creates [ key ];
+		});
+
+		creates.go = false;
+	}
+
 	// If updates.go
 	if ( updates.go ) {
 		Object.keys( updates ).forEach( function ( key ) {
+			// Ignore go key
+			if ( key === "go" ) return;
+
 			// push non-null values to cmds array
-			if ( updates[ key ] ) cmds.push( updates[ key ] );
+			if ( updates[ key ] )
+				cmds.push( updates[ key ] );
+
 			// null and delete each propety
 			updates[ key ] = null;
 			delete updates[ key ];
 		} );
+
 		// set updates.go as false
 		updates.go = false;
 	}
@@ -782,10 +812,14 @@ that.write						= function ( obj ) {
 	]
 	.forEach( function ( v ) {
 		if ( v[0].ids.length > 0 )
-			cmds.push(
-				{ "type" : v[1],"uuid" : v[0].uuid,"args" : {"ids" : v[0].ids} }
-			);
+			cmds.push({
+				"type": v[1],
+				"uuid": v[0].uuid,
+				"args": { "ids": v[0].ids },
+			});
 	} );
+
+	if ( cmds.length === 0 ) return csn( "No cmds available" );
 
 	ajax(
 		{ "commands" : JSON.stringify( cmds ), },
@@ -815,6 +849,7 @@ that.backups = null;
 ////////		////////		Write			////////		////////
 var moveItems	= { go : false };
 var updates		= { go : false };
+var creates		= { go : false };
 var deletes		= { uuid : uuid.gen(), ids : [] };
 var completes	= { uuid : uuid.gen(), ids : [] };
 that.moveItem = function ( item, project, cancel ) {
@@ -877,14 +912,15 @@ function tinker( item, cancel, location, register ) {
 
 	return ret;
 }
-this.updateItem = function ( obj, cancel ) {
+that.updateItem = function ( obj, cancel ) {
 	// TODO: Cancel implementation
 
 	// Prevent writes during function calls
 	pauseAutoWrite( true );
 
 	// Validatiton
-	if ( typeof obj !== "object" ) return abortSelf();
+	if ( typeof obj !== "object" || !obj.id )
+		return abortSelf( "Invalid command object" );
 
 	var
 		recipt = { // Recipt object that is returned
@@ -902,33 +938,47 @@ this.updateItem = function ( obj, cancel ) {
 		args = recipt.cmd.args,
 		exts = recipt.exts;
 
-	if ( !args ) return abortSelf();
+	if ( !args ) return abortSelf( "Invalid command object" );
 
 	// // External calls
+	function extCallUnifier ( extKey, func, msgAbort, msgWarn ) {
+		exts[extKey] = func();
+		logger( msgWarn );
+		if ( !exts[extKey] ) return abortSelf( msgAbort );
+	}
 	// If .projectId, call and validate move command
-	if ( obj.projectId		) {
-		exts.projectMove	= that.moveItem( obj, obj.projectId );
-		if ( !exts.projectMove )
-			return logger( "Invalid item or project ID", abortSelf() );
-		logger( "You can also use .projectMove()" );
-	}
+	if (
+		obj.projectId &&
+		!extCallUnifier(
+			"projectMove",
+			function(){ return that.moveItem( obj, obj.projectId ); },
+			"Invalid item or project ID",
+			"You can also use .projectMove()"
+		)
+	) return false;
 	// If .checked or .isCompleted, call and validate complete command
-	if ( obj.checked || obj.isCompleted ) {
-		exts.completeItem	= that.completeItem( obj );
-		if ( !exts.completeItem )
-			return logger( "Invalid item ID", abortSelf() );
-		logger( "You can also use .completeItem()" );
-	}
+	if (
+		( obj.checked || obj.isCompleted ) &&
+		!extCallUnifier(
+			"completeItem",
+			function(){ return that.completeItem( obj ); },
+			"Invalid item ID",
+			"You can also use .completeItem()"
+		)
+	) return false;
 	// If .isDeleted, call and validate complete command
-	if ( obj.isDeleted ) {
-		exts.deleteItem	= that.deleteItem( obj );
-		if ( !exts.deleteItem )
-			return logger( "Invalid item ID", abortSelf() );
-		logger( "WHY ARE YOU DELETEING WITH THIS?" );
-	}
+	if (
+		obj.isDeleted &&
+		!extCallUnifier(
+			"deleteItem",
+			function(){ return that.deleteItem( obj ); },
+			"Invalid item ID",
+			"WHY ARE YOU DELETEING WITH THIS?"
+		)
+	) return false;
 
 	// Update update register
-	updates[ args.id ] = recipt.args;
+	updates[ args.id ] = recipt;
 	updates.go = true;
 
 	// Resume previous auto write, and call if true
@@ -938,7 +988,27 @@ this.updateItem = function ( obj, cancel ) {
 	return recipt;
 
 	// Unified function to unpause without calling .write and return false
-	function abortSelf() { pauseAutoWrite( false, true ); return false; }
+	function abortSelf( msg ){ pauseAutoWrite(false,true); return csn( msg ); }
+};
+that.createItem = function ( obj, cancel ) {
+	// TODO: Cancel implementation
+
+	var
+		wrap = {
+			uuid : uuid.gen(),
+			args : validateItem( obj ),
+		},
+		cmd = wrap.args;
+
+	// Validation
+	if ( !wrap.args )	return csn( "Invalid commands object" );
+	if ( !cmd.content )	return csn( "Content is required" );
+	if ( cmd.id )		return csn( ".id is not a valid argument" );
+
+	creates.go = true;
+	creates[ wrap.uuid ] = wrap;
+
+	return wrap;
 };
 ////////		////////		Ex/Im-ports		////////		////////
 that.toJSON		= function () {
@@ -949,7 +1019,7 @@ that.saveState	= function () {
 	// TODO: Do more
 	return {
 		dataArray:that.dataArray,
-		token:this.token,
+		token:that.token,
 		sync_token:syncTokens.main
 	};
 };
@@ -958,21 +1028,6 @@ that.loadState	= function (obj) {
 		that.dataArray = obj.dataArray;
 	};
 ////////		////////		Unsorted		////////		////////
-var convention = "camelCase";
-that.toConvention = function (type) {
-	var shorthand = { "cC":"camelCase", "CC":"CamelCase", "_" :"underscore", };
-
-	if (shorthand[type]) type = shorthand[type];
-	if ( convention === type ) return logger ( "Already done", true );
-
-	if ( type === "CamelCase" ) {}
-	if ( type === "camelCase" ) {}
-	if ( type === "underscore" ) {}
-	if ( type === "lowercase" ) {}
-	if ( type === "UPPERCASE" ) {}
-
-	convention = type;
-};
 that.inboxProject = function () {
 	if ( !inboxProject || !dataSupport.projects[inboxProject] ) return null;
 
