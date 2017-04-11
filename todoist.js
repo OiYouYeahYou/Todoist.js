@@ -1,4 +1,6 @@
 /* jshint laxbreak : true */
+var Todoist = (function () {
+
 function Todoist(){
 var that = this,		// Enables sub functions to access `this`
 	countOfConn = 0,	// Counts the number of open XHRs
@@ -292,33 +294,6 @@ function nativisor( response, camelised ) {
 
 	return response;
 }
-function cameliseKeys( obj ) {
-	//	obj							// Input param
-	var keys = Object.keys( obj ),	// Shorthand
-		key,						// Shorthand
-		neuObj = {};				// Object that is returned
-
-	for (var i = 0; i < keys.length; i++) {
-		// Shorthand
-		key = keys[i];
-
-		// If Underscored change convention
-		if ( keys[i].indexOf("_") )
-			neuObj	[ camelise(key) ] = obj[ key ];
-		// Else copy into new obj
-		else
-			neuObj	[		key		] = obj[ key ];
-
-		// Housekeeping
-		key = neuKey = null;
-	}
-
-	// return object
-	return neuObj;
-
-	// Modular Underscore to camelCase function
-	function camelise(str) { return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); }); }
-}
 function validateProjectId( id, onlyExisitng ) {
 	// id is project ID
 	// onlyExisitng (boolean, proper)
@@ -401,39 +376,8 @@ function csn( msg ) {
 }
 ////////		////////		Comms			////////		////////
 function ajax( paramObj, url, onloadFunc ) {
-	// Validation
-	if (
-			typeof paramObj		!== "object" ||
-			typeof url			!== "string" ||
-			typeof onloadFunc	!== "function"
-		) return false;
-
-	if ( !paramObj.token )
-		paramObj.token = that.token;
-
-	var urlString = "https://todoist.com/API/v7/" + url,
-								// URL constructor
-		paramString	= "",		// String to be passed to Todoist API
-		keys		= Object.keys(paramObj),
-								// Sorthand
-		key;					// Shorthand
-
-	// Param string construction
-	for (var i = 0; i < keys.length; i++) {
-		key = keys[i];
-		if	( paramString.length > 1 ) paramString += "&";
-		if	( paramObj[key].toString() )
-			paramString += key+"="+String(paramObj[key]).replace(/'/g,"\"");
-		else return logger("Unexpected data type", false);
-	}
-
-	// Calling the HTTP request
-	var xhr = new XMLHttpRequest();
-		xhr.onload = function() {onloadFunc( JSON.parse(xhr.response) );};
-		xhr.open( "POST", urlString );
-		xhr.setRequestHeader(
-			"Content-type", "application/x-www-form-urlencoded" );
-		xhr.send( paramString );
+	if ( !paramObj.token ) paramObj.token = that.token;
+	ajaxMain( paramObj, url, onloadFunc );
 }
 that.offline					= null;
 that.limit						= null;
@@ -1070,3 +1014,65 @@ function pauseAutoWrite( bool, dnr ) {
 	}
 }
 } // END OF CLASS //
+function ajaxMain( paramObj, url, onloadFunc ) {
+	// Validation
+	if (
+			typeof paramObj		!== "object" ||
+			typeof url			!== "string" ||
+			typeof onloadFunc	!== "function"
+		) return false;
+
+	var urlString = "https://todoist.com/API/v7/" + url,
+								// URL constructor
+		paramString	= "",		// String to be passed to Todoist API
+		keys		= Object.keys(paramObj),
+								// Sorthand
+		key;					// Shorthand
+
+	// Param string construction
+	for (var i = 0; i < keys.length; i++) {
+		key = keys[i];
+		if	( paramString.length > 1 ) paramString += "&";
+		if	( paramObj[key].toString() )
+			paramString += key+"="+String(paramObj[key]).replace(/'/g,"\"");
+		else return logger("Unexpected data type", false);
+	}
+
+	// Calling the HTTP request
+	var xhr = new XMLHttpRequest();
+		xhr.onload = function() {onloadFunc( JSON.parse(xhr.response) );};
+		xhr.open( "POST", urlString );
+		xhr.setRequestHeader(
+			"Content-type", "application/x-www-form-urlencoded" );
+		xhr.send( paramString );
+}
+function cameliseKeys( obj ) {
+	//	obj							// Input param
+	var keys = Object.keys( obj ),	// Shorthand
+		key,						// Shorthand
+		neuObj = {};				// Object that is returned
+
+	for (var i = 0; i < keys.length; i++) {
+		// Shorthand
+		key = keys[i];
+
+		// If Underscored change convention
+		if ( keys[i].indexOf("_") )
+			neuObj	[ camelise(key) ] = obj[ key ];
+		// Else copy into new obj
+		else
+			neuObj	[		key		] = obj[ key ];
+
+		// Housekeeping
+		key = neuKey = null;
+	}
+
+	// return object
+	return neuObj;
+
+	// Modular Underscore to camelCase function
+	function camelise(str) { return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); }); }
+}
+
+return Todoist;
+})();
