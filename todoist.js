@@ -1013,166 +1013,166 @@ function Todoist(){
 				return that.write();
 		}
 	}
-	} // END OF CLASS //
-	function ajaxMain( paramObj, url, onloadFunc ) {
-		// Validation
-		if (
-				typeof paramObj		!== "object" ||
-				typeof url			!== "string" ||
-				typeof onloadFunc	!== "function"
-			) return false;
+} // END OF CLASS //
+function ajaxMain( paramObj, url, onloadFunc ) {
+	// Validation
+	if (
+			typeof paramObj		!== "object" ||
+			typeof url			!== "string" ||
+			typeof onloadFunc	!== "function"
+		) return false;
 
-		var urlString = "https://todoist.com/API/v7/" + url,
-									// URL constructor
-			paramString	= "",		// String to be passed to Todoist API
-			keys		= Object.keys(paramObj),
-									// Sorthand
-			key;					// Shorthand
+	var urlString = "https://todoist.com/API/v7/" + url,
+								// URL constructor
+		paramString	= "",		// String to be passed to Todoist API
+		keys		= Object.keys(paramObj),
+								// Sorthand
+		key;					// Shorthand
 
-		// Param string construction
-		for (var i = 0; i < keys.length; i++) {
-			key = keys[i];
-			if	( paramString.length > 1 ) paramString += "&";
-			if	( paramObj[key].toString() )
-				paramString += key+"="+String(paramObj[key]).replace(/'/g,"\"");
-			else return logger("Unexpected data type", false);
-		}
-
-		// Calling the HTTP request
-		var xhr = new XMLHttpRequest();
-			xhr.onload = function() {onloadFunc( JSON.parse(xhr.response) );};
-			xhr.open( "POST", urlString );
-			xhr.setRequestHeader(
-				"Content-type", "application/x-www-form-urlencoded" );
-			xhr.send( paramString );
+	// Param string construction
+	for (var i = 0; i < keys.length; i++) {
+		key = keys[i];
+		if	( paramString.length > 1 ) paramString += "&";
+		if	( paramObj[key].toString() )
+			paramString += key+"="+String(paramObj[key]).replace(/'/g,"\"");
+		else return logger("Unexpected data type", false);
 	}
-	function cameliseKeys( obj ) {
-		//	obj							// Input param
-		var keys = Object.keys( obj ),	// Shorthand
-			key,						// Shorthand
-			neuObj = {};				// Object that is returned
 
-		for (var i = 0; i < keys.length; i++) {
-			// Shorthand
-			key = keys[i];
+	// Calling the HTTP request
+	var xhr = new XMLHttpRequest();
+		xhr.onload = function() {onloadFunc( JSON.parse(xhr.response) );};
+		xhr.open( "POST", urlString );
+		xhr.setRequestHeader(
+			"Content-type", "application/x-www-form-urlencoded" );
+		xhr.send( paramString );
+}
+function cameliseKeys( obj ) {
+	//	obj							// Input param
+	var keys = Object.keys( obj ),	// Shorthand
+		key,						// Shorthand
+		neuObj = {};				// Object that is returned
 
-			// If Underscored change convention
-			if ( keys[i].indexOf("_") )
-				neuObj	[ camelise(key) ] = obj[ key ];
-			// Else copy into new obj
-			else
-				neuObj	[		key		] = obj[ key ];
+	for (var i = 0; i < keys.length; i++) {
+		// Shorthand
+		key = keys[i];
 
-			// Housekeeping
-			key = neuKey = null;
-		}
+		// If Underscored change convention
+		if ( keys[i].indexOf("_") )
+			neuObj	[ camelise(key) ] = obj[ key ];
+		// Else copy into new obj
+		else
+			neuObj	[		key		] = obj[ key ];
 
-		// return object
-		return neuObj;
-
-		// Modular Underscore to camelCase function
-		function camelise(str) { return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); }); }
+		// Housekeeping
+		key = neuKey = null;
 	}
-	Todoist.registerUser = function ( email, fullName, password ){
 
-		var ret;
-		if ( Todoist.registerUser.loadAsCurrent ) ret = new Todoist();
-		else ret = true;
+	// return object
+	return neuObj;
 
-		ajaxMain(
-			{
-				"email"		: email,
-				"full_name"	: fullName,
-				"password"	: password,
-			},
-			"user/register",
-			loadevent
-		);
+	// Modular Underscore to camelCase function
+	function camelise(str) { return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); }); }
+}
+Todoist.registerUser = function ( email, fullName, password ){
 
-		return ret;
+	var ret;
+	if ( Todoist.registerUser.loadAsCurrent ) ret = new Todoist();
+	else ret = true;
 
-		function loadevent( response ) {
-			var example = {
-					"id": 1855589,
-					"token": "0123456789abcdef0123456789abcdef01234567",
-					"email": "me@xample.com",
-					"full_name": "Example User",
-					"inbox_project": 128501411,
-					"tz_info": {
-						"timezone": "GMT +1:00",
-						"gmt_string": "+01:00",
-						"hours": 1,
-						"minutes": 0,
-						"is_dst": 0
-					},
-					"start_page": "overdue, 7 days",
-					"start_day": 1,
-					"next_week": 1,
-					"date_format": 0,
-					"time_format": 0,
-					"sort_order": 0,
-					"default_reminder": null,
-					"auto_reminder": 30,
-					"mobile_host": null,
-					"mobile_number": null,
-					"completed_count": 20,
-					"completed_today": 2,
-					"karma": 684.0,
-					"karma_trend": "-",
-					"is_premium": false,
-					"premium_until": null,
-					"is_biz_admin": false,
-					"business_account_id": null,
-					"image_id": null,
-					"avatar_small": "https://*.cloudfront.net/*_small.jpg",
-					"avatar_medium": "https://*.cloudfront.net/*_medium.jpg",
-					"avatar_big": "https://*.cloudfront.net/*_big.jpg",
-					"avatar_s640": "https://*.cloudfront.net/*_s640.jpg",
-					"theme": 0,
-					"features": {
-						"beta": 0,
-						"restriction": 3,
-						"has_push_reminders": false,
-					},
-					"join_date": "Wed 30 Apr 2014 13:24:38 +0000"
-				};
-			response = example;
-			console.log(response);
+	ajaxMain(
+		{
+			"email"		: email,
+			"full_name"	: fullName,
+			"password"	: password,
+		},
+		"user/register",
+		loadevent
+	);
 
-		}
-	};
-	Todoist.registerUser.loadAsCurrent	= false;
-	Todoist.registerUser.syncAfter		= false;
-	Todoist.itemTemplate = function ( type, $input ) {
-		/**
-		* Produces template object as an aid
-		*/
-		var template = {
-			dateString		: null,
-			dateLang		: null,
-			dueDateUtc		: null,
-			prioirty		: null,
-			indent			: null,
-			itemOrder		: null,
-			dayOrder		: null,
-			collapsed		: null,
-			labels			: null,
-			assignedByUid	: null,
-			responsibleUid	: null,
-		};
+	return ret;
 
-		if ( type === "create" ) {
-			template.content	= "";
-			template.projectId	= null;
-		}
-		if ( type === "update" ) {
-			template.id = $input
-							? getId( $input, that.items )
-							: template.id = "REQUIRED";
-		}
+	function loadevent( response ) {
+		var example = {
+				"id": 1855589,
+				"token": "0123456789abcdef0123456789abcdef01234567",
+				"email": "me@xample.com",
+				"full_name": "Example User",
+				"inbox_project": 128501411,
+				"tz_info": {
+					"timezone": "GMT +1:00",
+					"gmt_string": "+01:00",
+					"hours": 1,
+					"minutes": 0,
+					"is_dst": 0
+				},
+				"start_page": "overdue, 7 days",
+				"start_day": 1,
+				"next_week": 1,
+				"date_format": 0,
+				"time_format": 0,
+				"sort_order": 0,
+				"default_reminder": null,
+				"auto_reminder": 30,
+				"mobile_host": null,
+				"mobile_number": null,
+				"completed_count": 20,
+				"completed_today": 2,
+				"karma": 684.0,
+				"karma_trend": "-",
+				"is_premium": false,
+				"premium_until": null,
+				"is_biz_admin": false,
+				"business_account_id": null,
+				"image_id": null,
+				"avatar_small": "https://*.cloudfront.net/*_small.jpg",
+				"avatar_medium": "https://*.cloudfront.net/*_medium.jpg",
+				"avatar_big": "https://*.cloudfront.net/*_big.jpg",
+				"avatar_s640": "https://*.cloudfront.net/*_s640.jpg",
+				"theme": 0,
+				"features": {
+					"beta": 0,
+					"restriction": 3,
+					"has_push_reminders": false,
+				},
+				"join_date": "Wed 30 Apr 2014 13:24:38 +0000"
+			};
+		response = example;
+		console.log(response);
 
-		return template;
+	}
+};
+Todoist.registerUser.loadAsCurrent	= false;
+Todoist.registerUser.syncAfter		= false;
+Todoist.itemTemplate = function ( type, $input ) {
+	/**
+	* Produces template object as an aid
+	*/
+	var template = {
+		dateString		: null,
+		dateLang		: null,
+		dueDateUtc		: null,
+		prioirty		: null,
+		indent			: null,
+		itemOrder		: null,
+		dayOrder		: null,
+		collapsed		: null,
+		labels			: null,
+		assignedByUid	: null,
+		responsibleUid	: null,
 	};
 
-	return Todoist;
+	if ( type === "create" ) {
+		template.content	= "";
+		template.projectId	= null;
+	}
+	if ( type === "update" ) {
+		template.id = $input
+						? getId( $input, that.items )
+						: template.id = "REQUIRED";
+	}
+
+	return template;
+};
+
+return Todoist;
 })();
