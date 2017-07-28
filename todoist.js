@@ -665,7 +665,8 @@ function Todoist(){
 	that.dataArray					= null;
 	that.token						= null;
 	that.write						= function ( obj ) {
-		var cmds = [];
+		var cmds = [],
+			refs = {};
 
 		if ( moveItems.go ) {
 			var moveCommands = Object.values(moveItems).reduce( function(out,value){
@@ -706,7 +707,7 @@ function Todoist(){
 				return out;
 			}, {} );
 
-			[].push.apply( cmds, Object.values( moveCommands ) );
+			Object.values( moveCommands ).forEach( push );
 		}
 
 		if ( creates.go ) {
@@ -716,7 +717,7 @@ function Todoist(){
 
 				// push non-null values to cmds array
 				if ( creates [ key ] )
-					cmds.push({
+					push({
 						"type"		: "item_add",
 						"temp_id"	: creates[ key ].uuid,
 						"uuid"		: creates[ key ].uuid,
@@ -739,7 +740,7 @@ function Todoist(){
 
 				// push non-null values to cmds array
 				if ( updates[ key ] )
-					cmds.push( updates[ key ] );
+					push( updates[ key ] );
 
 				// null and delete each propety
 				updates[ key ] = null;
@@ -756,7 +757,7 @@ function Todoist(){
 		]
 		.forEach( function ( v ) {
 			if ( v[0].ids.length > 0 )
-				cmds.push({
+				push({
 					"type": v[1],
 					"uuid": v[0].uuid,
 					"args": { "ids": v[0].ids },
@@ -771,8 +772,42 @@ function Todoist(){
 			loadEvent
 		);
 
-		function loadEvent(response) {
+		cmds = null;
 
+		function loadEvent( response ) {
+			console.log( response );
+			Object.keys( response.sync_status ).forEach(function (key) {
+				// Shorthand
+				var status = response.sync_status[key];
+
+				// Command is succesful
+				if ( status === "ok" ) { console.log(  key + " : ok" ); }
+
+				// Else === command is errorful
+				else {
+					logger(
+						"Error: " + status.error +
+						"\nIf this presist please report issue." +
+						"\nFind log in Todoist.errors." + key
+					);
+					if ( !Todoist.errors ) Todoist.errors = {};
+					Todoist.errors[key] = { response : status };
+					console.log( Todoist.errors[key] );
+				}
+
+				// Houskeeping
+				response.sync_status[key] = null;
+				delete response.sync_status[key];
+			});
+
+			// Add IDs to newly created resources
+			Object.keys( response.temp_id_mapping ).forEach(function ( key ) {
+				refs[key].args.id = response.temp_id_mapping[ key ];
+			});
+		}
+		function push( obj ) {
+			cmds.push( obj );
+			refs[ obj.uuid ] = obj;
 		}
 	};
 	that.write.auto					= false;
