@@ -2,7 +2,7 @@
 
 Download the `todoist.js` file and add it to your page
 ```html
-<script type="text/javascript" src="todist.js"></script>
+<script type="text/javascript" src="todoist.js"></script>
 ```
 Then initiate with the following code
 ```javascript
