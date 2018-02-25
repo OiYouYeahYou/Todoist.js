@@ -904,18 +904,14 @@ function Todoist(){
 		var
 			recipt = { // Recipt object that is returned
 				// Update object that is sent to Todoist Servers
-				"cmd" : {
-					"type" : "update_item",
+					"type" : "item_update",
 					"uuid" : uuid.gen(),
-					"args" : validateItem( obj ),
-				},
-				// Addistional endpoing calls
-				"exts" : {}
+					"args" : validateItem( obj )
 			},
 
 			// Shorthand
 			args = recipt.cmd.args,
-			exts = recipt.exts;
+			exts = {};
 
 		if ( !args ) return abortSelf( "Invalid command object" );
 
